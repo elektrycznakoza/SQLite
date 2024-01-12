@@ -43,9 +43,26 @@ def add_top_scorer(conn, top_scorer_data):
     cur = conn.cursor()
     cur.execute(sql, top_scorer_data)
     conn.commit()
+
     with open('sqlitecheck.txt', 'a') as log_file:
         log_file.write(f"{datetime.datetime.now()} - Dodano nowego najlepszego strzelca o ID {cur.lastrowid}\n")
     return cur.lastrowid
+
+def update_top_scorer(conn, top_scorer_id, new_data):
+    sql = '''UPDATE top_scorers
+             SET imie_nazwisko=?, pozycja=?, narodowosc=?, klub=?, liczba_strzelonych_bramek=?
+             WHERE id=?'''
+    cur = conn.cursor()
+    cur.execute(sql, (*new_data, top_scorer_id))
+    conn.commit()
+
+def select_with_condition(conn, table, condition_column, condition_value):
+    query = f"SELECT * FROM {table} WHERE {condition_column} = ?;"
+    cursor = conn.cursor()
+    cursor.execute(query, (condition_value,))
+    rows = cursor.fetchall()
+    for row in rows:
+        print(row)
 
 def display_teams_with_positive_goal_difference(conn):
     query = "SELECT * FROM premier_league WHERE bilans_bramek > 0;"
@@ -89,6 +106,17 @@ def display_top_scorers(conn):
     cursor.execute(query)
     rows = cursor.fetchall()
     print("Najlepsi strzelcy z bramkami powyżej 20:")
+    for row in rows:
+        print(row)
+
+def join_tables(conn):
+    query = '''SELECT premier_league.*, top_scorers.imie_nazwisko, top_scorers.pozycja, top_scorers.narodowosc, top_scorers.liczba_strzelonych_bramek
+               FROM premier_league
+               JOIN top_scorers ON premier_league.nazwa_druzyny = top_scorers.klub;'''
+    cursor = conn.cursor()
+    cursor.execute(query)
+    rows = cursor.fetchall()
+    print("Wyniki złączenia obu tabel:")
     for row in rows:
         print(row)
 
@@ -152,6 +180,8 @@ if __name__ == "__main__":
         for top_scorer_data in top_scorers_data:
             top_scorer_id = add_top_scorer(conn, top_scorer_data)
 
+        update_top_scorer(conn, 21, ("Patrick Vieira", "Pomocnik", "Francja", "Arsenal", 3))
+
         display_teams_with_positive_goal_difference(conn)
 
         display_arsenal_top_scorers(conn)
@@ -161,6 +191,8 @@ if __name__ == "__main__":
         display_teams_starting_with_A(conn)
 
         display_top_scorers(conn)
+
+        join_tables(conn)
 
         conn.commit()
         conn.close()
