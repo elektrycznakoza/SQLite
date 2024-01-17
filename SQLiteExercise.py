@@ -10,7 +10,6 @@ def create_connection(db_file):
     except Error as e:
         print(e)
 
-# Funkcja do usuwania i resetowania tabel
 def delete_and_reset_tables(conn):
     user_input = input("Czy chcesz usunąć i zresetować tabele? (tak/nie): ")
     if user_input.lower() == 'tak':
