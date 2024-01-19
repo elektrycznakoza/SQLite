@@ -13,8 +13,8 @@ def create_connection(db_file):
 def delete_and_reset_tables(conn):
     user_input = input("Czy chcesz usunąć i zresetować tabele? (tak/nie): ")
     if user_input.lower() == 'tak':
-        execute_sql(conn, "DROP TABLE IF EXISTS projects;")
-        execute_sql(conn, "DROP TABLE IF EXISTS tasks;")
+        execute_sql(conn, "DROP TABLE IF EXISTS customers;")
+        execute_sql(conn, "DROP TABLE IF EXISTS orders;")
 
 def execute_sql(conn, sql, data=None):
     try:
@@ -55,12 +55,11 @@ def select_all(conn, table, conditions=None, params=None):
     except Error as e:
         print(e)
 
-def update_data(conn, table, task_id, **kwargs):
-    """Aktualizuje dane w tabeli."""
+def update_data(conn, table, order_id, **kwargs):
     parameters = [f"{k} = ?" for k in kwargs]
     parameters = ", ".join(parameters)
     values = tuple(v for v in kwargs.values())
-    values += (task_id, )
+    values += (order_id, )
 
     sql = f"UPDATE {table} SET {parameters} WHERE id = ?"
     try:
@@ -71,22 +70,22 @@ def update_data(conn, table, task_id, **kwargs):
     except Error as e:
         print(e)
 
-def delete_task(conn, task_id):
+def delete_order(conn, order_id):
     try:
-        task_details = select_all(conn, "tasks", "id = ?", (task_id,))
-        if not task_details:
-            print(f"Task with id {task_id} not found.")
+        order_details = select_all(conn, "orders", "id = ?", (order_id,))
+        if not order_details:
+            print(f"Order with id {order_id} not found.")
             return
 
-        task_details = task_details[0] 
-        task_name = task_details[2] 
+        order_details = order_details[0] 
+        product_name = order_details[2] 
 
-        sql = "DELETE FROM tasks WHERE id = ?"
+        sql = "DELETE FROM orders WHERE id = ?"
         cur = conn.cursor()
-        cur.execute(sql, (task_id,))
+        cur.execute(sql, (order_id,))
         conn.commit()
 
-        print(f"Task '{task_name}' (ID: {task_id}) deleted successfully from tasks table.")
+        print(f"Order '{product_name}' (ID: {order_id}) deleted successfully from orders table.")
     except Error as e:
         print(e)
 
@@ -97,63 +96,62 @@ if __name__ == "__main__":
 
     delete_and_reset_tables(conn)
 
-    create_projects_sql = """
-    CREATE TABLE IF NOT EXISTS projects (
+    create_customers_sql = """
+    CREATE TABLE IF NOT EXISTS customers (
         id INTEGER PRIMARY KEY,
         name TEXT NOT NULL,
-        description TEXT,
-        status TEXT NOT NULL,
-        start_date TEXT NOT NULL,
-        end_date TEXT NOT NULL
+        email TEXT NOT NULL,
+        phone TEXT
     );
     """
 
-    create_tasks_sql = """
-    CREATE TABLE IF NOT EXISTS tasks (
+    create_orders_sql = """
+    CREATE TABLE IF NOT EXISTS orders (
         id INTEGER PRIMARY KEY,
-        project_id INTEGER NOT NULL,
-        name TEXT NOT NULL,
-        description TEXT,
-        status TEXT NOT NULL,
-        start_date TEXT NOT NULL,
-        end_date TEXT NOT NULL,
-        FOREIGN KEY (project_id) REFERENCES projects (id)
+        customer_id INTEGER NOT NULL,
+        product_name TEXT NOT NULL,
+        quantity INTEGER NOT NULL,
+        price REAL NOT NULL,
+        FOREIGN KEY (customer_id) REFERENCES customers (id)
     );
     """
 
-    create_table(conn, create_projects_sql)
-    create_table(conn, create_tasks_sql)
+    create_table(conn, create_customers_sql)
+    create_table(conn, create_orders_sql)
 
-    project_data = (1, 'Letnia Promocja 2022', 'Przygotowanie i realizacja letniej kampanii promocyjnej dla produktów firmy.', 'W trakcie', '2022-06-01', '2022-08-31')
-    task_data = (1, 1, 'Przygotowanie Materiałów Promocyjnych', 'Stworzenie atrakcyjnych grafik i treści reklamowych.', 'Zakończone', '2022-06-01', '2022-06-15')
+    customer_data = (1, 'John Doe', 'john@example.com', '123-456-7890')
+    order_data = (1, 1, 'Dark chocolate', 2, 19.99)
 
-    insert_data(conn, "INSERT INTO projects VALUES (?, ?, ?, ?, ?, ?)", project_data, "projects")
-    insert_data(conn, "INSERT INTO tasks VALUES (?, ?, ?, ?, ?, ?, ?)", task_data, "tasks")
+    insert_data(conn, "INSERT INTO customers VALUES (?, ?, ?, ?)", customer_data, "customers")
+    insert_data(conn, "INSERT INTO orders VALUES (?, ?, ?, ?, ?)", order_data, "orders")
 
-    new_project_data = (2, 'Zimowa Kampania 2023', 'Przygotowanie i realizacja zimowej kampanii promocyjnej dla produktów firmy.', 'Planowane', '2023-01-01', '2023-02-28')
-    insert_data(conn, "INSERT INTO projects VALUES (?, ?, ?, ?, ?, ?)", new_project_data, "projects")
+    new_customer_data = (2, 'Jane Smith', 'jane@example.com', '987-654-3210')
+    insert_data(conn, "INSERT INTO customers VALUES (?, ?, ?, ?)", new_customer_data, "customers")
 
-    print("\nWszystkie projekty po dodaniu nowego:")
-    print(select_all(conn, "projects"))
+    print("\nWszyscy klienci po dodaniu nowego:")
+    print(select_all(conn, "customers"))
 
-    updated_task_data = {
-        "name": "Nowe Zadanie",
-        "status": "W trakcie",
-        "end_date": "2023-01-15"
-    }
-    update_data(conn, "tasks", 1, **updated_task_data)
+    nowe_zamowienia = [
+        (2, 1, 'Chleb pszenny', 1, 3.50),
+        (3, 2, 'Ser pleśniowy', 2, 12.99),
+        (4, 1, 'Mleko pełnotłuste', 3, 2.99)
+    ]
 
-    print("\nWszystkie zadania po aktualizacji:")
-    print(select_all(conn, "tasks", "project_id = ?", (1,)))
+    insert_sql = "INSERT INTO orders VALUES (?, ?, ?, ?, ?)"
+    for zamowienie in nowe_zamowienia:
+        insert_data(conn, insert_sql, zamowienie, "orders")
 
-    delete_task_id = 1
-    delete_task(conn, delete_task_id)
+    print("\nWszystkie zamówienia po aktualizacji:")
+    print(select_all(conn, "orders", "customer_id = ?", (1,)))
 
-    print("\nWszystkie projekty po usunięciu:")
-    print(select_all(conn, "projects"))
+    delete_order_id = 1
+    delete_order(conn, delete_order_id)
 
-    print("\nWszystkie zadania po usunięciu:")
-    print(select_all(conn, "tasks"))
+    print("\nWszyscy klienci po usunięciu:")
+    print(select_all(conn, "customers"))
+
+    print("\nWszystkie zamówienia po usunięciu:")
+    print(select_all(conn, "orders"))
 
     if conn:
         conn.close()
